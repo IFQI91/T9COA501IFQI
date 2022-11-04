@@ -1,0 +1,143 @@
+---
+title: '**Tarea 9**'
+author: ' \textcolor{blue}{Iván F. Quiroz Ibáñez}'
+date: "`r format(Sys.time(), '%d % de %B % de %Y')`"
+language: es-MX
+output:
+  pdf_document:
+    includes:
+  html_document:
+    toc: TRUE
+    toc_float: TRUE
+    fig_caption: yes
+    df_print: paged
+  word_document:
+subtitle: COA-501 Herramientas de cómputo para investigadores
+---
+
+**Instrucciones:** 
+Con el conjunto de datos de Boston, ejecute un modelo lineal (lm)con un conjunto de datos
+de entrenamiento (train) con 70 % de las observaciones y 30 % para el conjunto de datos de prueba
+(test). Defina cinco funciones para calcular los cinco criterios de desempeño del modelo con base en los
+valores observado y predichos.
+Grafique los valores predichos de los tres modelos versus los valores observados, en
+los conjuntos de prueba. Comente sus resultados.
+
+### **Entrada de datos**
+```{r}
+#lectura de base de detos
+library(MASS)
+Boston <- Boston
+Boston <- Boston[,-1]
+#instalar gt
+#devtools::install_github("rstudio/gt")
+library(gt)
+head(Boston,10)%>%gt()
+```
+
+### **Regresion lineal múltiple**
+```{r}
+# Split the data into training and testing set
+set.seed(123)
+# Normalize the data
+maxs <- apply(Boston, 2, max) 
+mins <- apply(Boston, 2, min)
+scaled <- as.data.frame(scale(Boston, center = mins, 
+                              scale = maxs - mins))
+index<- sample(1:nrow(Boston), round(0.70 * nrow(Boston)))
+train_ <- Boston[index,]
+test_ <- Boston[-index,]
+
+#otra forma
+#split <- sample.split(data, SplitRatio = 0.8)#muestra del 80% 
+#train <- subset(data, split == "TRUE") #80%
+#test <- subset(data, split == "FALSE") #20%
+
+ml <- lm(medv~.,data = train_)
+summary(ml)
+
+
+#R^2
+y_pred <- predict(ml, test_)
+SSE = sum((y_pred-test_$medv)^2)
+SST = sum((y_pred-mean(test_$medv))^2)
+r2_test = 1 - SSE/SST
+r2_test
+
+#CME y RCME
+MSE.lm <- sum((test_$medv-y_pred)^2)/nrow(test_)
+MSE.lm
+RMSE.ml <- sqrt(MSE.lm)
+RMSE.ml
+
+#funciones mse,rms,rae,mae,mape
+cme<- function(yobs, ypre)
+{
+  n <- length(yobs)
+  suma.error <- sum ((yobs - ypre) ^ 2 ) / n
+  return(suma.error)
+}
+cme.lm.test <- cme(test_$medv, y_pred)
+cme.lm.test
+
+
+rms <- function(yobs, ypre)
+{
+  n <- length(yobs)
+  error_ <- yobs - ypre
+  suma.error <- sum (error_ ^ 2 )
+  return(sqrt(suma.error / n))
+}
+rms.lm.test <- rms(test_$medv, y_pred)
+rms.lm.test
+
+rae<- function(yobs, ypre)
+{
+  error_ <- yobs - ypre
+  suma.error <- sum (error_ ^ 2 )
+  suma.yi <- sum(yobs ^ 2)
+  return(sqrt(suma.error / suma.yi ))
+}
+rae.lm.test <- rae(test_$medv, y_pred)
+rae.lm.test
+
+mae<- function(yobs, ypre)
+{
+  n <- length(yobs)
+  error_ <- yobs - ypre
+  suma.error <- sum (abs(error_))
+  return(suma.error / n )
+}
+mae.lm.test <- mae(test_$medv, y_pred)
+mae.lm.test
+
+mape<- function(yobs, ypre)
+{
+  n <- length(yobs)
+  error_ <- (yobs - ypre) / yobs
+  suma.error <- sum (abs(error_))
+  return((suma.error / n ) * 100 )
+}
+mape.lm.test <- mape(test_$medv, y_pred)
+mape.lm.test
+
+#Métricas
+m <-data.frame(rbind(r2_test,cme.lm.test,rms.lm.test,
+    rae.lm.test,mae.lm.test,mape.lm.test))
+colnames(m) <- "Valor"
+
+m
+
+# Plot observados vs predichos
+plot(test_$medv, y_pred, col = "blue", 
+     main = 'ML: Observados vs Predichos')
+abline(lm(y_pred~test_$medv), lwd = 2, col="red")
+text(10, 30, label=expression("R"^2* "="))
+text(11,29.5, paste(round(cor(test_$medv,y_pred)^2, 3)), pos=4)
+
+```
+
+### **Interpretación de gráficas y resultados**
+
+De acuerdo con los resultados, se observa que el modelo lineal múltiple es bueno para predecir a la variable medv (mediana del precio de vivienda); aunque aún falta por predecir 25% de la variabilidad; sería interesante evaluar otros modelos no paramétricos como random forest o redes neuranales, además de un ACP para reducir la dimensionalidad de la base de datos. Las variables con menor capacidad de predicción son age e indus, todas las restantes, tienen un comportamiento aceptable.
+
